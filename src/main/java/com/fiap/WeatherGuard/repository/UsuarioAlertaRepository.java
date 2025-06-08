@@ -21,5 +21,6 @@ public interface UsuarioAlertaRepository extends JpaRepository<UsuarioAlerta, Lo
     @Transactional
     @Query("DELETE FROM UsuarioAlerta ua WHERE ua.alerta.data < :dataLimite")
     void deleteByAlertaDataBefore(LocalDateTime dataLimite);
+    void deleteByUsuario(Usuario usuario);
 
 }
