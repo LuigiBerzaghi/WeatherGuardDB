@@ -29,8 +29,6 @@ Mais do que uma aplicação técnica, o WeatherGuard é uma iniciativa com impac
 
 ---
 
----
-
 ## 🚀 Como se conectar com seu Oracle
 
 1. basta trocar o schema pela sua identificação (login e senha) oracle do arquivo Aplication.Propieties da rota:
