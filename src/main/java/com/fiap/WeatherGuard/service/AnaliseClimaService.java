@@ -33,9 +33,27 @@ public class AnaliseClimaService {
         }
 
         String cidade = resposta.getCidade();
-        String tipo = null;
-        String descricao = null;
+        Alerta alerta = analisarClima(resposta, cidade);
 
+        if (alerta != null) {
+            List<Usuario> usuarios = usuarioService.listarTodos();
+            System.out.println("👥 Total de usuários: " + usuarios.size());
+
+            for (Usuario usuario : usuarios) {
+                System.out.println("➡️ Verificando usuário ID: " + usuario.getId() + " - Cidade: " + usuario.getCidade());
+                if (usuario.getCidade().equalsIgnoreCase(cidade)) {
+                    System.out.println("✅ Correspondência de cidade. Associando alerta...");
+                    usuarioAlertaService.associarAlertaAoUsuario(usuario, alerta);
+                } else {
+                    System.out.println("❌ Cidade não corresponde: " + usuario.getCidade() + " != " + cidade);
+                }
+            }
+        } else {
+            System.out.println("ℹ️ Nenhuma condição climática extrema identificada.");
+        }
+    }
+
+    private Alerta analisarClima(OpenWeatherResponse resposta, String cidade) {
         try {
             double chuva = resposta.getRain() != null && resposta.getRain().get("1h") != null
                     ? ((Number) resposta.getRain().get("1h")).doubleValue() : 0;
@@ -44,80 +62,33 @@ public class AnaliseClimaService {
             double temperatura = resposta.getMain() != null && resposta.getMain().get("temp") != null
                     ? ((Number) resposta.getMain().get("temp")).doubleValue() : 0;
 
-            // --- CHUVA ---
-            if (chuva > 50) {
-                tipo = "Chuva Extrema";
-                descricao = "Risco severo de alagamentos";
-            } else if (chuva > 25) {
-                tipo = "Chuva Intensa";
-                descricao = "Risco de alagamentos";
-            } else if (chuva > 10) {
-                tipo = "Chuva Moderada";
-                descricao = "Volume de chuva acima do normal";
-            }
+            // 🔴 Ordem de prioridade: Chuva > Vento > Calor > Frio
+            if (chuva > 50) return criarAlerta("Chuva Extrema", "Risco severo de alagamentos", cidade);
+            if (chuva > 25) return criarAlerta("Chuva Intensa", "Risco de alagamentos", cidade);
+            if (chuva > 10) return criarAlerta("Chuva Moderada", "Volume de chuva acima do normal", cidade);
 
-            // --- VENTO ---
-            else if (vento > 80) {
-                tipo = "Vendaval Severo";
-                descricao = "Risco extremo de vendaval";
-            } else if (vento > 60) {
-                tipo = "Vendaval";
-                descricao = "Risco de vendaval detectado";
-            } else if (vento > 40) {
-                tipo = "Vento Forte";
-                descricao = "Rajadas de vento intensas";
-            }
+            if (vento > 80) return criarAlerta("Vendaval Severo", "Risco extremo de vendaval", cidade);
+            if (vento > 60) return criarAlerta("Vendaval", "Risco de vendaval detectado", cidade);
+            if (vento > 40) return criarAlerta("Vento Forte", "Rajadas de vento intensas", cidade);
 
-            // --- TEMPERATURA (CALOR) ---
-            else if (temperatura > 40) {
-                tipo = "Onda de Calor";
-                descricao = "Risco de calor extremo detectado";
-            } else if (temperatura > 35) {
-                tipo = "Calor Intenso";
-                descricao = "Temperatura muito elevada";
-            } else if (temperatura > 30) {
-                tipo = "Calor Moderado";
-                descricao = "Temperatura acima do ideal";
-            }
+            if (temperatura > 40) return criarAlerta("Onda de Calor", "Risco de calor extremo detectado", cidade);
+            if (temperatura > 35) return criarAlerta("Calor Intenso", "Temperatura muito elevada", cidade);
+            if (temperatura > 30) return criarAlerta("Calor Moderado", "Temperatura acima do ideal", cidade);
 
-            // --- TEMPERATURA (FRIO) ---
-            else if (temperatura < 0) {
-                tipo = "Congelamento";
-                descricao = "Risco de congelamento";
-            } else if (temperatura < 5) {
-                tipo = "Frio Intenso";
-                descricao = "Temperatura muito baixa";
-            } else if (temperatura < 10) {
-                tipo = "Frio Moderado";
-                descricao = "Temperatura abaixo do ideal";
-            }
-
-            if (tipo != null) {
-                System.out.println("🌦️ Clima identificado: " + tipo + " - " + descricao + " - Cidade: " + cidade);
-
-                // Cria novo alerta (substituindo os antigos automaticamente)
-                Alerta alerta = alertaService.criarAlerta(tipo, descricao, cidade);
-
-                List<Usuario> usuarios = usuarioService.listarTodos();
-                System.out.println("👥 Total de usuários: " + usuarios.size());
-
-                for (Usuario usuario : usuarios) {
-                    System.out.println("➡️ Verificando usuário ID: " + usuario.getId() + " - Cidade: " + usuario.getCidade());
-
-                    if (usuario.getCidade().equalsIgnoreCase(cidade)) {
-                        System.out.println("✅ Correspondência de cidade. Associando alerta...");
-                        usuarioAlertaService.associarAlertaAoUsuario(usuario, alerta);
-                    } else {
-                        System.out.println("❌ Cidade não corresponde: " + usuario.getCidade() + " != " + cidade);
-                    }
-                }
-            } else {
-                System.out.println("ℹ️ Nenhuma condição climática extrema identificada.");
-            }
+            if (temperatura < 0) return criarAlerta("Congelamento", "Risco de congelamento", cidade);
+            if (temperatura < 5) return criarAlerta("Frio Intenso", "Temperatura muito baixa", cidade);
+            if (temperatura < 10) return criarAlerta("Frio Moderado", "Temperatura abaixo do ideal", cidade);
 
         } catch (Exception e) {
             System.err.println("🚨 Erro ao analisar clima: " + e.getMessage());
         }
+
+        return null; // Nenhuma condição severa
+    }
+
+    private Alerta criarAlerta(String tipo, String descricao, String cidade) {
+        System.out.println("🌦️ Clima identificado: " + tipo + " - " + descricao + " - Cidade: " + cidade);
+        return alertaService.criarAlerta(tipo, descricao, cidade);
     }
 
     @Scheduled(fixedRate = 1800000) // a cada 30 minutos

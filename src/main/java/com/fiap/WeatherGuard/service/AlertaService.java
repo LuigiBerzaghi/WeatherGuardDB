@@ -2,9 +2,11 @@ package com.fiap.WeatherGuard.service;
 
 import com.fiap.WeatherGuard.model.Alerta;
 import com.fiap.WeatherGuard.repository.AlertaRepository;
+import com.fiap.WeatherGuard.repository.UsuarioAlertaRepository;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -15,12 +17,15 @@ public class AlertaService {
     @Autowired
     private AlertaRepository alertaRepository;
 
+    @Autowired
+    private UsuarioAlertaRepository usuarioAlertaRepository;
+
     /**
      * Cria novo alerta substituindo qualquer alerta semelhante (tipo, descrição e cidade)
-     * criado nas últimas 2 horas.
+     * criado nas últimas 6 horas.
      */
     public Alerta criarAlerta(String tipo, String descricao, String cidade) {
-        LocalDateTime limite = LocalDateTime.now().minusHours(2);
+        LocalDateTime limite = LocalDateTime.now().minusHours(6);
         List<Alerta> alertasRecentes = alertaRepository.findByTipoAndDescricaoAndCidadeAndDataAfter(
                 tipo, descricao, cidade, limite
         );
@@ -43,12 +48,41 @@ public class AlertaService {
     }
 
     /**
-     * Remove todos os alertas com mais de 2 horas
+     * Remove todos os alertas com mais de 6 horas,
+     * incluindo seus relacionamentos em UsuarioAlerta para evitar erros de integridade.
      */
+    @Transactional
     public void removerAlertasAntigos() {
-        LocalDateTime limite = LocalDateTime.now().minusHours(2);
+        LocalDateTime limite = LocalDateTime.now().minusHours(6);
         System.out.println("🧹 Removendo alertas criados antes de: " + limite);
-        alertaRepository.deleteByDataBefore(limite);
+
+        try {
+            // Busca alertas antigos antes de deletar
+            List<Alerta> alertasAntigos = alertaRepository.findByDataBefore(limite);
+
+            if (alertasAntigos.isEmpty()) {
+                System.out.println("Nenhum alerta antigo para remover.");
+                return;
+            }
+
+            // Mostra quais alertas serão apagados
+            System.out.println("Alertas a serem removidos:");
+            alertasAntigos.forEach(alerta -> 
+                System.out.println(" - ID: " + alerta.getId() + ", Tipo: " + alerta.getTipo() + ", Cidade: " + alerta.getCidade() + ", Data: " + alerta.getData())
+            );
+
+            // Deleta os relacionamentos dos alertas antigos primeiro
+            usuarioAlertaRepository.deleteByAlertaDataBefore(limite);
+
+            // Depois deleta os alertas antigos
+            alertaRepository.deleteByDataBefore(limite);
+
+            System.out.println("✅ Alertas antigos removidos com sucesso.");
+
+        } catch (Exception e) {
+            System.err.println("❌ Erro ao tentar remover alertas antigos: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     public Alerta buscarPorId(Long id) {
