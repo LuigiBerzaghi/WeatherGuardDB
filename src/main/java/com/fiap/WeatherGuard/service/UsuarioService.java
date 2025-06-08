@@ -65,5 +65,10 @@ public class UsuarioService {
     public Page<Usuario> buscarPorCidade(String cidade, Pageable pageable) {
         return usuarioRepository.findByCidadeIgnoreCaseContaining(cidade, pageable);
     }
+    // Verificar se email já foi cadastrado
+    public boolean emailJaExiste(String email) {
+        return usuarioRepository.findByEmail(email).isPresent();
+    }
+    
 
 }

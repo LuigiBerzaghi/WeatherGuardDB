@@ -1,6 +1,7 @@
 package com.fiap.WeatherGuard.controller;
 
 import com.fiap.WeatherGuard.dto.UsuarioDTO;
+import org.springframework.http.HttpStatus;
 
 import com.fiap.WeatherGuard.mapper.UsuarioMapper;
 import com.fiap.WeatherGuard.model.Usuario;
@@ -62,10 +63,16 @@ public class UsuarioController {
 
     // Cadastrar novo usuário
     @PostMapping
-    public ResponseEntity<UsuarioDTO> cadastrar(@Valid @RequestBody Usuario usuario) {
+    public ResponseEntity<?> cadastrar(@Valid @RequestBody Usuario usuario) {
+        if (usuarioService.emailJaExiste(usuario.getEmail())) {
+            return ResponseEntity
+                    .status(HttpStatus.CONFLICT)
+                    .body("E-mail já cadastrado");
+        }
+
         Usuario novoUsuario = usuarioService.cadastrar(usuario);
         UsuarioDTO dto = UsuarioMapper.toDTO(novoUsuario);
-        return ResponseEntity.status(201).body(dto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(dto);
     }
 
 
