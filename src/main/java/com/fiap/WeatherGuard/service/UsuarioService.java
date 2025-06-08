@@ -2,11 +2,13 @@ package com.fiap.WeatherGuard.service;
 
 import com.fiap.WeatherGuard.model.Usuario;
 import com.fiap.WeatherGuard.repository.UsuarioRepository;
+import com.fiap.WeatherGuard.repository.UsuarioAlertaRepository;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -15,6 +17,9 @@ public class UsuarioService {
 
     @Autowired
     private UsuarioRepository usuarioRepository;
+
+    @Autowired
+    private UsuarioAlertaRepository usuarioAlertaRepository;
 
     // Listar todos os usuários
     public List<Usuario> listarTodos() {
@@ -49,13 +54,18 @@ public class UsuarioService {
     }
 
     // Deletar usuário
+    @Transactional
     public void deletar(Long id) {
-        if (!usuarioRepository.existsById(id)) {
-            throw new EntityNotFoundException("Usuário com ID " + id + " não existe.");
-        }
-        usuarioRepository.deleteById(id);
+        Usuario usuario = usuarioRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Usuário com ID " + id + " não encontrado."));
+
+        
+        usuarioAlertaRepository.deleteByUsuario(usuario);
+
+        
+        usuarioRepository.delete(usuario);
     }
-    
+
     // Listar todos os usuários com paginação
     public Page<Usuario> listarTodos(Pageable pageable) {
         return usuarioRepository.findAll(pageable);
@@ -65,10 +75,9 @@ public class UsuarioService {
     public Page<Usuario> buscarPorCidade(String cidade, Pageable pageable) {
         return usuarioRepository.findByCidadeIgnoreCaseContaining(cidade, pageable);
     }
+
     // Verificar se email já foi cadastrado
     public boolean emailJaExiste(String email) {
         return usuarioRepository.findByEmail(email).isPresent();
     }
-    
-
 }
