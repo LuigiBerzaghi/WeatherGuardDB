@@ -44,6 +44,7 @@ spring.datasource.username=<SEU_LOGIN_ORACLE>
 spring.datasource.password=<SUA_SENHA_ORACLE>
 
 ```
+obs:(o spring ja cria as tabelas ao rodar a API)
 
 ## 🔒 Autenticação
 
